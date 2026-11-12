@@ -220,6 +220,11 @@ func TestSession_LateUnlockDropped(t *testing.T) {
 	if !ok {
 		t.Fatal("first TryLock should succeed")
 	}
+	// Age the fixture explicitly: consecutive clock reads can be identical
+	// on Windows, so an immediate BreakStaleLock(0) is not deterministic.
+	s.mu.Lock()
+	s.busySince = s.busySince.Add(-time.Minute)
+	s.mu.Unlock()
 	if _, broken := s.BreakStaleLock(0); !broken {
 		t.Fatal("BreakStaleLock(0) should break the held lock")
 	}
@@ -250,7 +255,10 @@ func TestSession_BreakStaleLockThreshold(t *testing.T) {
 	if _, broken := s.BreakStaleLock(time.Hour); broken {
 		t.Fatal("lock held shorter than maxHeld must not break")
 	}
-	if _, broken := s.BreakStaleLock(0); !broken {
+	s.mu.Lock()
+	s.busySince = s.busySince.Add(-2 * time.Hour)
+	s.mu.Unlock()
+	if _, broken := s.BreakStaleLock(time.Hour); !broken {
 		t.Fatal("lock held longer than maxHeld should break")
 	}
 	if s.Busy() {

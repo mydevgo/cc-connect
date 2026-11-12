@@ -11718,28 +11718,27 @@ func TestCmdShell_MultiWorkspaceUsesSharedBindingWorkDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	normalizedWsDir := normalizeWorkspacePath(wsDir)
+	// Keep this test independent of factories registered by other tests.
+	ws := e.workspacePool.GetOrCreate(normalizedWsDir)
+	ws.agent = &stubAgent{}
+	ws.sessions = NewSessionManager("")
 	e.workspaceBindings.Bind(sharedWorkspaceBindingsKey, "ch1", "shared-shell", normalizedWsDir)
 
+	command := "pwd"
+	if runtime.GOOS == "windows" {
+		// Avoid PowerShell's table formatter truncating long temporary paths.
+		command = "(Get-Location).Path"
+	}
 	msg := &Message{
 		SessionKey: "test:ch1:user1",
-		Content:    "/shell pwd",
+		Content:    "/shell " + command,
 		ReplyCtx:   "ctx",
 	}
-	e.cmdShell(p, msg, "/shell pwd")
+	e.cmdShell(p, msg, msg.Content)
 
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		sent := p.getSent()
-		if len(sent) > 0 {
-			if !strings.Contains(sent[0], normalizedWsDir) {
-				t.Fatalf("expected shell output to contain shared workspace %q, got %q", normalizedWsDir, sent[0])
-			}
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("timed out waiting for shell response")
-		}
-		time.Sleep(10 * time.Millisecond)
+	output := waitForShellTestResult(t, p)
+	if !strings.Contains(output, normalizedWsDir) {
+		t.Fatalf("expected shell output to contain shared workspace %q, got %q", normalizedWsDir, output)
 	}
 }
 
@@ -11755,37 +11754,29 @@ func TestCmdShell_MultiWorkspaceIgnoresMissingSharedBinding(t *testing.T) {
 	missingDir := filepath.Join(baseDir, "missing-shared-workspace")
 	e.workspaceBindings.Bind(sharedWorkspaceBindingsKey, "ch1", "shared-shell", missingDir)
 
+	command := "pwd"
+	if runtime.GOOS == "windows" {
+		command = "(Get-Location).Path"
+	}
 	msg := &Message{
 		SessionKey: "test:ch1:user1",
-		Content:    "/shell pwd",
+		Content:    "/shell " + command,
 		ReplyCtx:   "ctx",
 	}
-	e.cmdShell(p, msg, "/shell pwd")
+	e.cmdShell(p, msg, msg.Content)
 
-	deadline := time.Now().Add(2 * time.Second)
 	// Normalize both the expected and missing paths to handle macOS symlink
 	// resolution (e.g. /var/folders/ -> /private/var/folders/). Then check
 	// that the shell output contains the resolved expected path and does NOT
 	// contain the resolved missing path.
 	expectedResolved := normalizeWorkspacePath(agent.workDir)
 	missingResolved := normalizeWorkspacePath(missingDir)
-	for {
-		sent := p.getSent()
-		if len(sent) > 0 {
-			// With streaming progress, the final result is the last sent message
-			output := sent[len(sent)-1]
-			if !strings.Contains(output, agent.workDir) && !strings.Contains(output, expectedResolved) {
-				t.Fatalf("expected shell output to fall back to agent work dir %q (resolved %q), got %q", agent.workDir, expectedResolved, output)
-			}
-			if strings.Contains(output, missingDir) || strings.Contains(output, missingResolved) {
-				t.Fatalf("expected shell output to ignore missing shared workspace %q, got %q", missingDir, output)
-			}
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("timed out waiting for shell response")
-		}
-		time.Sleep(10 * time.Millisecond)
+	output := waitForShellTestResult(t, p)
+	if !strings.Contains(output, agent.workDir) && !strings.Contains(output, expectedResolved) {
+		t.Fatalf("expected shell output to fall back to agent work dir %q (resolved %q), got %q", agent.workDir, expectedResolved, output)
+	}
+	if strings.Contains(output, missingDir) || strings.Contains(output, missingResolved) {
+		t.Fatalf("expected shell output to ignore missing shared workspace %q, got %q", missingDir, output)
 	}
 }
 
@@ -11841,11 +11832,36 @@ func TestTruncateRunes(t *testing.T) {
 
 // --- runShellWithProgress tests ---
 
+func shellTestTimeout() time.Duration {
+	// PowerShell cold starts can take several seconds when all agent packages
+	// spawn subprocesses concurrently. These tests verify output, not latency.
+	if runtime.GOOS == "windows" {
+		return 30 * time.Second
+	}
+	return 5 * time.Second
+}
+
+func waitForShellTestResult(t *testing.T, p *stubPlatformEngine) string {
+	t.Helper()
+	deadline := time.Now().Add(shellTestTimeout() + 3*time.Second)
+	for time.Now().Before(deadline) {
+		for _, output := range p.getSent() {
+			// A slow command can emit a progress message before the result.
+			if strings.HasPrefix(output, "✅") || strings.HasPrefix(output, "❌") || strings.HasPrefix(output, "⚠️") {
+				return output
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for shell result; messages: %q", p.getSent())
+	return ""
+}
+
 func TestRunShellWithProgress_BasicOutput(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
 
-	err := e.runShellWithProgress(p, "ctx", "echo hello", t.TempDir(), 5*time.Second, 4000)
+	err := e.runShellWithProgress(p, "ctx", "echo hello", t.TempDir(), shellTestTimeout(), 4000)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -11874,7 +11890,7 @@ func TestRunShellWithProgress_FailedCommand(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
 
-	err := e.runShellWithProgress(p, "ctx", "exit 42", t.TempDir(), 5*time.Second, 4000)
+	err := e.runShellWithProgress(p, "ctx", "exit 42", t.TempDir(), shellTestTimeout(), 4000)
 	if err == nil {
 		t.Fatal("expected error for non-zero exit")
 	}
@@ -11936,7 +11952,7 @@ func TestRunShellWithProgress_EmptyOutput(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		cmd = `cmd /c "exit /b 0"`
 	}
-	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), 5*time.Second, 4000)
+	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), shellTestTimeout(), 4000)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -11966,7 +11982,7 @@ func TestRunShellWithProgress_StderrOutput(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		cmd = `cmd /c "echo err >&2"`
 	}
-	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), 5*time.Second, 4000)
+	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), shellTestTimeout(), 4000)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -11997,12 +12013,10 @@ func TestRunShellWithProgress_LongOutputTruncated(t *testing.T) {
 
 	// Generate output longer than maxOutput
 	cmd := "python3 -c 'print(\"x\" * 5000)'"
-	timeout := 5 * time.Second
 	if runtime.GOOS == "windows" {
 		cmd = `Write-Host ('x' * 5000)`
-		timeout = 15 * time.Second
 	}
-	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), timeout, 100)
+	err := e.runShellWithProgress(p, "ctx", cmd, t.TempDir(), shellTestTimeout(), 100)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -12032,7 +12046,7 @@ func TestRunShellWithProgress_NonexistentCommand(t *testing.T) {
 	p := &stubPlatformEngine{n: "test"}
 	e := NewEngine("test", &stubAgent{}, []Platform{p}, "", LangEnglish)
 
-	err := e.runShellWithProgress(p, "ctx", "nonexistent_command_xyz_12345", t.TempDir(), 5*time.Second, 4000)
+	err := e.runShellWithProgress(p, "ctx", "nonexistent_command_xyz_12345", t.TempDir(), shellTestTimeout(), 4000)
 	if err == nil {
 		t.Fatal("expected error for nonexistent command")
 	}
