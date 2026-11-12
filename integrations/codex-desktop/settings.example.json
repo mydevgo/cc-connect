@@ -1,0 +1,10 @@
+{
+  "ccBinary": "C:/Tools/cc-connect/cc-connect.exe",
+  "project": "desktop-codex",
+  "sessionKey": "feishu:oc_YOUR_CHAT_ID:ou_YOUR_USER_ID",
+  "codexHome": "C:/Users/YOUR_USER/.codex",
+  "stateDir": "C:/Tools/codex-desktop-bridge/state",
+  "logFile": "C:/Tools/codex-desktop-bridge/notify.log",
+  "answerDir": "C:/Tools/codex-desktop-bridge/questions",
+  "questionCards": true
+}

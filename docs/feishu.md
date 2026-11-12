@@ -512,6 +512,7 @@ enable_feishu_card = false
 
 ## 下一步
 
+- [通过交互卡片回答 Codex 桌面问题（可选的 Windows 本机集成）](../integrations/codex-desktop/README.md)
 - [接入钉钉](./dingtalk.md)
 - [接入微博](./weibo.md)
 - [接入 Telegram](./telegram.md)

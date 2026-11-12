@@ -17,14 +17,14 @@ import (
 type HookEventType string
 
 const (
-	HookEventMessageReceived    HookEventType = "message.received"
-	HookEventMessageSent        HookEventType = "message.sent"
-	HookEventSessionStarted     HookEventType = "session.started"
-	HookEventSessionEnded       HookEventType = "session.ended"
-	HookEventCronTriggered      HookEventType = "cron.triggered"
-	HookEventTimerTriggered     HookEventType = "timer.triggered"
+	HookEventMessageReceived     HookEventType = "message.received"
+	HookEventMessageSent         HookEventType = "message.sent"
+	HookEventSessionStarted      HookEventType = "session.started"
+	HookEventSessionEnded        HookEventType = "session.ended"
+	HookEventCronTriggered       HookEventType = "cron.triggered"
+	HookEventTimerTriggered      HookEventType = "timer.triggered"
 	HookEventPermissionRequested HookEventType = "permission.requested"
-	HookEventError              HookEventType = "error"
+	HookEventError               HookEventType = "error"
 )
 
 // HookHandlerType is the execution strategy for a hook.
@@ -38,7 +38,7 @@ const (
 // HookConfig is the user-facing configuration for a single hook rule.
 type HookConfig struct {
 	Event   string `toml:"event" json:"event"`
-	Type    string `toml:"type" json:"type"`       // "command" or "http"
+	Type    string `toml:"type" json:"type"` // "command" or "http"
 	Command string `toml:"command" json:"command,omitempty"`
 	URL     string `toml:"url" json:"url,omitempty"`
 	Timeout int    `toml:"timeout" json:"timeout,omitempty"` // seconds; 0 = default (10s cmd, 5s http)
@@ -75,13 +75,13 @@ type HookEvent struct {
 
 // HookManager dispatches lifecycle events to configured hook handlers.
 type HookManager struct {
-	hooks       []HookConfig
-	project     string
-	shell       string // shell binary (e.g. "sh", "/bin/zsh")
-	shellFlag   string // shell flag (e.g. "-c", "-Command")
+	hooks        []HookConfig
+	project      string
+	shell        string // shell binary (e.g. "sh", "/bin/zsh")
+	shellFlag    string // shell flag (e.g. "-c", "-Command")
 	shellProfile string // prepended to every command
-	mu          sync.RWMutex
-	client      *http.Client
+	mu           sync.RWMutex
+	client       *http.Client
 }
 
 // NewHookManager creates a manager for the given project name.
@@ -95,12 +95,12 @@ func NewHookManager(project string, hooks []HookConfig, shell, shellFlag, shellP
 		valid = append(valid, h)
 	}
 	return &HookManager{
-		hooks:       valid,
-		project:     project,
-		shell:       shell,
-		shellFlag:   shellFlag,
+		hooks:        valid,
+		project:      project,
+		shell:        shell,
+		shellFlag:    shellFlag,
 		shellProfile: shellProfile,
-		client:      &http.Client{},
+		client:       &http.Client{},
 	}
 }
 
@@ -265,6 +265,52 @@ func eventToEnv(e HookEvent) []string {
 		env = append(env, "CC_HOOK_ERROR="+e.Error)
 	}
 	return env
+}
+
+// callDesktopAnswer is deliberately separate from lifecycle Emit: exactly one
+// command hook is allowed, JSON is sent on stdin, and stdout is the IM receipt.
+// It grants no admin rights and does not interpolate user-controlled strings.
+func (hm *HookManager) callDesktopAnswer(event HookEvent) (string, error) {
+	if hm == nil || event.Platform == "" || len(event.Content) > 32000 {
+		return "", fmt.Errorf("desktop answer bridge unavailable")
+	}
+	hm.mu.RLock()
+	var handler *HookConfig
+	for _, configured := range hm.hooks {
+		if configured.Event == "desktop.answer" && configured.Type == "command" {
+			if handler != nil {
+				hm.mu.RUnlock()
+				return "", fmt.Errorf("multiple desktop answer handlers")
+			}
+			copy := configured
+			handler = &copy
+		}
+	}
+	hm.mu.RUnlock()
+	if handler == nil {
+		return "", fmt.Errorf("desktop answer handler not configured")
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := shellExecCommand(ctx, hm.shell, hm.shellFlag, hm.shellProfile, handler.Command)
+	cmd.WaitDelay = 2 * time.Second
+	cmd.Stdin = bytes.NewReader(body)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	receipt := strings.TrimSpace(string(output))
+	if receipt == "" {
+		return "", fmt.Errorf("empty desktop answer receipt")
+	}
+	if len(receipt) > 65536 {
+		return "", fmt.Errorf("desktop answer receipt too large")
+	}
+	return receipt, nil
 }
 
 // Hooks returns the current hook configurations (for management API / testing).

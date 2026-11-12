@@ -1,0 +1,65 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'C:/Program Files/nodejs/node.exe' 'C:/Tools/codex-desktop-bridge/notify.mjs'\"",
+            "async": true,
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'C:/Program Files/nodejs/node.exe' 'C:/Tools/codex-desktop-bridge/notify.mjs'\"",
+            "async": true,
+            "timeout": 45
+          }
+        ],
+        "matcher": "(^|[._])request_user_input(_async)?$"
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'C:/Program Files/nodejs/node.exe' 'C:/Tools/codex-desktop-bridge/notify.mjs'\"",
+            "async": true,
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PostModelRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'C:/Program Files/nodejs/node.exe' 'C:/Tools/codex-desktop-bridge/notify.mjs'\"",
+            "async": true,
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'C:/Program Files/nodejs/node.exe' 'C:/Tools/codex-desktop-bridge/notify.mjs'\"",
+            "async": true,
+            "timeout": 45
+          }
+        ]
+      }
+    ]
+  }
+}

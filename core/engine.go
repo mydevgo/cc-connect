@@ -1216,6 +1216,7 @@ func resolveDisabledCmds(cmds []string) map[string]bool {
 			for _, bc := range builtinCommands {
 				m[bc.id] = true
 			}
+			m["answer"] = true
 			return m
 		}
 		if id := matchPrefix(c, builtinCommands); id != "" {
@@ -2973,6 +2974,10 @@ func (e *Engine) startMessageRecallMonitor(sessionKey string) context.CancelFunc
 }
 
 func (e *Engine) handleMessage(p Platform, msg *Message) {
+	if msg.DesktopAnswer != nil {
+		e.dispatchDesktopCardAnswer(p, msg)
+		return
+	}
 	if msg.Recalled {
 		e.handleMessageRecall(p, msg)
 		return
@@ -7345,6 +7350,29 @@ func (e *Engine) handleCommand(p Platform, msg *Message, raw string) bool {
 	case "ps":
 		e.cmdPs(p, msg, args)
 	default:
+		// Local desktop-question bridge: consume the exact command and pass the
+		// original text as JSON stdin to a fixed, locally configured hook. Never
+		// expand message text into a shell command or send it to the AI agent.
+		if cmd == "answer" {
+			if disabledCmds["answer"] {
+				e.reply(p, msg.ReplyCtx, e.i18n.Tf(MsgCommandDisabled, "/answer"))
+				return true
+			}
+			if _, ok := p.(DesktopQuestionPlatform); !ok {
+				e.reply(p, msg.ReplyCtx, e.i18n.T(MsgDesktopBridgeUnavailable))
+				return true
+			}
+			go func() {
+				body, err := e.hooks.callDesktopAnswer(HookEvent{
+					Event: "desktop.answer", Project: e.name, Timestamp: time.Now(),
+					SessionKey: msg.SessionKey, Platform: msg.Platform,
+					UserID: msg.UserID, Content: raw,
+					Extra: map[string]any{"message_id": msg.MessageID},
+				})
+				e.finishDesktopAnswer(p, msg, body, err)
+			}()
+			return true
+		}
 		if custom, ok := e.commands.Resolve(cmd); ok {
 			if disabledCmds[strings.ToLower(custom.Name)] {
 				slog.Info("audit: command_blocked",

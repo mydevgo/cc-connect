@@ -701,7 +701,179 @@ const (
 	MsgAgentRelayToolPrompt MsgKey = "agent_relay_tool_prompt"
 )
 
+const (
+	MsgDesktopBridgeUnavailable MsgKey = "desktop_bridgeunavailable"
+	MsgDesktopInvalidReceipt    MsgKey = "desktop_invalidreceipt"
+	MsgDesktopConversation      MsgKey = "desktop_conversation"
+	MsgDesktopDirectory         MsgKey = "desktop_directory"
+	MsgDesktopChoose            MsgKey = "desktop_choose"
+	MsgDesktopInput             MsgKey = "desktop_input"
+	MsgDesktopOtherInput        MsgKey = "desktop_otherinput"
+	MsgDesktopSubmit            MsgKey = "desktop_submit"
+	MsgDesktopHint              MsgKey = "desktop_hint"
+	MsgDesktopFallback          MsgKey = "desktop_fallback"
+	MsgDesktopWaiting           MsgKey = "desktop_waiting"
+	MsgDesktopSubmitted         MsgKey = "desktop_submitted"
+	MsgDesktopResolved          MsgKey = "desktop_resolved"
+	MsgDesktopExpired           MsgKey = "desktop_expired"
+	MsgDesktopUncertain         MsgKey = "desktop_uncertain"
+	MsgDesktopAnswer            MsgKey = "desktop_answer"
+	MsgDesktopUnauthorized      MsgKey = "desktop_unauthorized"
+	MsgDesktopInvalidCard       MsgKey = "desktop_invalidcard"
+	MsgDesktopEmptyAnswer       MsgKey = "desktop_emptyanswer"
+	MsgDesktopTooLong           MsgKey = "desktop_toolong"
+	MsgDesktopSubmitting        MsgKey = "desktop_submitting"
+)
+
 var messages = map[MsgKey]map[Language]string{
+	MsgDesktopBridgeUnavailable: {
+		LangEnglish:            "Desktop answer bridge is unavailable. Please check the original question on the desktop.",
+		LangChinese:            "暂时无法确认提交结果，请到桌面查看原问题后再决定是否重试。",
+		LangTraditionalChinese: "暫時無法確認提交結果，請到桌面查看原問題後再決定是否重試。",
+		LangJapanese:           "送信結果を確認できません。デスクトップで元の質問を確認してください。",
+		LangSpanish:            "No se puede confirmar el envío. Revisa la pregunta original en el escritorio.",
+	},
+	MsgDesktopInvalidReceipt: {
+		LangEnglish:            "Invalid bridge response. Check the question on the desktop.",
+		LangChinese:            "回复桥接返回了无效结果，请在桌面确认原问题。",
+		LangTraditionalChinese: "回覆橋接傳回無效結果，請在桌面確認原問題。",
+		LangJapanese:           "ブリッジの応答が無効です。デスクトップで質問を確認してください。",
+		LangSpanish:            "Respuesta del puente no válida. Revisa la pregunta en el escritorio.",
+	},
+	MsgDesktopConversation: {
+		LangEnglish:            "Chat: %s",
+		LangChinese:            "会话：%s",
+		LangTraditionalChinese: "對話：%s",
+		LangJapanese:           "チャット：%s",
+		LangSpanish:            "Chat: %s",
+	},
+	MsgDesktopDirectory: {
+		LangEnglish:            "Directory: %s",
+		LangChinese:            "目录：%s",
+		LangTraditionalChinese: "目錄：%s",
+		LangJapanese:           "ディレクトリ：%s",
+		LangSpanish:            "Directorio: %s",
+	},
+	MsgDesktopChoose: {
+		LangEnglish:            "Select an answer",
+		LangChinese:            "请选择答案",
+		LangTraditionalChinese: "請選擇答案",
+		LangJapanese:           "回答を選択",
+		LangSpanish:            "Selecciona una respuesta",
+	},
+	MsgDesktopInput: {
+		LangEnglish:            "Enter your answer (up to 1000 characters)",
+		LangChinese:            "请输入你的答案，最多1000字符",
+		LangTraditionalChinese: "請輸入你的答案，最多1000字元",
+		LangJapanese:           "回答を入力（1000文字まで）",
+		LangSpanish:            "Escribe tu respuesta (hasta 1000 caracteres)",
+	},
+	MsgDesktopOtherInput: {
+		LangEnglish:            "Or enter another answer (takes precedence; up to 1000 characters)",
+		LangChinese:            "也可填写其他答案（填写后优先使用），最多1000字符",
+		LangTraditionalChinese: "也可填寫其他答案（填寫後優先使用），最多1000字元",
+		LangJapanese:           "別の回答も入力可能（入力内容を優先、1000文字まで）",
+		LangSpanish:            "O escribe otra respuesta (tiene prioridad; hasta 1000 caracteres)",
+	},
+	MsgDesktopSubmit: {
+		LangEnglish:            "Submit answer",
+		LangChinese:            "提交答案",
+		LangTraditionalChinese: "提交答案",
+		LangJapanese:           "回答を送信",
+		LangSpanish:            "Enviar respuesta",
+	},
+	MsgDesktopHint: {
+		LangEnglish:            "Select or fill in, then submit. You can also answer on the desktop.",
+		LangChinese:            "选好或填写后再提交。也可在 Codex 桌面端回答。",
+		LangTraditionalChinese: "選好或填寫後再提交。也可在 Codex 桌面端回答。",
+		LangJapanese:           "選択または入力してから送信してください。デスクトップでも回答できます。",
+		LangSpanish:            "Selecciona o escribe y luego envía. También puedes responder en el escritorio.",
+	},
+	MsgDesktopFallback: {
+		LangEnglish:            "Fallback: /answer %s your answer",
+		LangChinese:            "备用回复：/answer %s 你的答案",
+		LangTraditionalChinese: "備用回覆：/answer %s 你的答案",
+		LangJapanese:           "代替方法：/answer %s 回答",
+		LangSpanish:            "Alternativa: /answer %s tu respuesta",
+	},
+	MsgDesktopWaiting: {
+		LangEnglish:            "Waiting for your answer",
+		LangChinese:            "等待你的回答",
+		LangTraditionalChinese: "等待你的回答",
+		LangJapanese:           "回答待ち",
+		LangSpanish:            "Esperando tu respuesta",
+	},
+	MsgDesktopSubmitted: {
+		LangEnglish:            "Submitted",
+		LangChinese:            "已提交",
+		LangTraditionalChinese: "已提交",
+		LangJapanese:           "送信済み",
+		LangSpanish:            "Enviada",
+	},
+	MsgDesktopResolved: {
+		LangEnglish:            "Answered",
+		LangChinese:            "已回答",
+		LangTraditionalChinese: "已回答",
+		LangJapanese:           "回答済み",
+		LangSpanish:            "Respondida",
+	},
+	MsgDesktopExpired: {
+		LangEnglish:            "Question expired",
+		LangChinese:            "问题已失效",
+		LangTraditionalChinese: "問題已失效",
+		LangJapanese:           "質問は無効です",
+		LangSpanish:            "Pregunta caducada",
+	},
+	MsgDesktopUncertain: {
+		LangEnglish:            "Check on the desktop",
+		LangChinese:            "请在桌面确认",
+		LangTraditionalChinese: "請在桌面確認",
+		LangJapanese:           "デスクトップで確認",
+		LangSpanish:            "Comprueba en el escritorio",
+	},
+	MsgDesktopAnswer: {
+		LangEnglish:            "Your answer: %s",
+		LangChinese:            "你的答案：%s",
+		LangTraditionalChinese: "你的答案：%s",
+		LangJapanese:           "あなたの回答：%s",
+		LangSpanish:            "Tu respuesta: %s",
+	},
+	MsgDesktopUnauthorized: {
+		LangEnglish:            "This account cannot answer this question.",
+		LangChinese:            "当前账号无权回答这个问题。",
+		LangTraditionalChinese: "目前帳號無權回答這個問題。",
+		LangJapanese:           "このアカウントでは回答できません。",
+		LangSpanish:            "Esta cuenta no puede responder a esta pregunta.",
+	},
+	MsgDesktopInvalidCard: {
+		LangEnglish:            "Invalid card data. Check the original question on the desktop.",
+		LangChinese:            "卡片信息无效，请在桌面查看原问题。",
+		LangTraditionalChinese: "卡片資訊無效，請在桌面查看原問題。",
+		LangJapanese:           "カード情報が無効です。デスクトップで元の質問を確認してください。",
+		LangSpanish:            "Datos de tarjeta no válidos. Revisa la pregunta original en el escritorio.",
+	},
+	MsgDesktopEmptyAnswer: {
+		LangEnglish:            "Select or enter an answer before submitting.",
+		LangChinese:            "请先选择答案或填写内容，再点击提交。",
+		LangTraditionalChinese: "請先選擇答案或填寫內容，再點擊提交。",
+		LangJapanese:           "回答を選択または入力してから送信してください。",
+		LangSpanish:            "Selecciona o escribe una respuesta antes de enviarla.",
+	},
+	MsgDesktopTooLong: {
+		LangEnglish:            "Answer too long. Shorten it and try again.",
+		LangChinese:            "答案过长，请缩短后再提交。",
+		LangTraditionalChinese: "答案過長，請縮短後再提交。",
+		LangJapanese:           "回答が長すぎます。短くして再送信してください。",
+		LangSpanish:            "Respuesta demasiado larga. Acórtala y vuelve a intentarlo.",
+	},
+	MsgDesktopSubmitting: {
+		LangEnglish:            "Submitting your answer…",
+		LangChinese:            "正在提交答案，请稍候…",
+		LangTraditionalChinese: "正在提交答案，請稍候…",
+		LangJapanese:           "回答を送信しています…",
+		LangSpanish:            "Enviando tu respuesta…",
+	},
+
 	MsgStarting: {
 		LangEnglish:            "⏳ Processing...",
 		LangChinese:            "⏳ 处理中...",

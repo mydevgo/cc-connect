@@ -787,6 +787,15 @@ func (p *Platform) onCardAction(event *callback.CardActionTriggerEvent) (*callba
 	if event.Event == nil || event.Event.Action == nil {
 		return nil, nil
 	}
+	// Log only callback structure, never tokens, choices or entered text.
+	valueKeys, formKeys := []string{}, []string{}
+	for key := range event.Event.Action.Value {
+		valueKeys = append(valueKeys, key)
+	}
+	for key := range event.Event.Action.FormValue {
+		formKeys = append(formKeys, key)
+	}
+	slog.Info(p.tag()+": card callback received", "tag", event.Event.Action.Tag, "name", event.Event.Action.Name, "value_keys", valueKeys, "form_fields", formKeys)
 
 	// Check allow_chat filter: skip card actions from chats this platform doesn't own.
 	if event.Event.Context != nil && event.Event.Context.OpenChatID != "" {
@@ -796,6 +805,9 @@ func (p *Platform) onCardAction(event *callback.CardActionTriggerEvent) (*callba
 	}
 
 	actionVal, _ := event.Event.Action.Value["action"].(string)
+	if actionVal == "desktop-answer:submit" || event.Event.Action.Name == "desktop_question_submit" {
+		return p.onDesktopQuestionAction(event)
+	}
 
 	// select_static callbacks put the chosen value in event.Event.Action.Option
 	if actionVal == "" && event.Event.Action.Option != "" {

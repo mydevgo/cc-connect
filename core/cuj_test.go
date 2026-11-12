@@ -41,6 +41,49 @@ import (
 	"time"
 )
 
+// The desktop IPC process is an external boundary here; the real engine owns
+// command routing, hook dispatch and the user-visible receipt/card updates.
+type desktopJourneyPlatform struct {
+	*stubPlatformEngine
+}
+
+func (p *desktopJourneyPlatform) SendDesktopQuestion(context.Context, any, DesktopQuestionCard) (string, error) {
+	return "om_question", nil
+}
+
+func (p *desktopJourneyPlatform) UpdateDesktopQuestion(ctx context.Context, id string, receipt DesktopAnswerReceipt) error {
+	return p.Send(ctx, nil, id+": "+receipt.Message)
+}
+
+func TestCUJ_I6_DesktopAnswersStayInOriginalChat(t *testing.T) {
+	env := newCUJEnv(t)
+	p := &desktopJourneyPlatform{stubPlatformEngine: env.plat}
+	t.Cleanup(func() { _ = env.engine.Stop() })
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := "desktop-answer-bridge:" + filepath.Join(env.tempDir, "seen.json")
+	env.engine.hooks = NewHookManager("test", []HookConfig{{Event: "desktop.answer", Type: "command", Command: command}}, executable, "-test.run=^TestDesktopAnswerHelperProcess$", "")
+	send := func(content string, card *DesktopCardSubmission) {
+		env.engine.ReceiveMessage(p, &Message{SessionKey: "test:desktop-user", Platform: p.Name(), UserID: "desktop-user", Content: content, ReplyCtx: "original-chat", DesktopAnswer: card})
+	}
+	// Action 1: use the fallback command and see its receipt in the same chat.
+	send("/answer Q-ABCDEF123456 literal answer", nil)
+	env.waitFor("command receipt", 5*time.Second, func() bool { return env.sentContains("Answer submitted") })
+	// Action 2: replay the same question and see the duplicate rejection.
+	send("/answer Q-ABCDEF123456 duplicate", nil)
+	env.waitFor("duplicate receipt", 5*time.Second, func() bool { return env.sentContains("Already answered") })
+	// Action 3: submit another question through the card and see it updated.
+	send("", &DesktopCardSubmission{Code: "Q-123456ABCDEF", Text: "card answer", MessageID: "om_question"})
+	env.waitFor("original card update", 5*time.Second, func() bool { return env.sentContains("om_question: Answer submitted") })
+	env.agent.mu.Lock()
+	defer env.agent.mu.Unlock()
+	if len(env.agent.sessions) != 0 {
+		t.Fatal("desktop answers must never start an unrelated agent session")
+	}
+}
+
 // CUJ: submit work during slow startup, queue a follow-up while the agent is
 // working, then check status. Both messages have receipts before either answer;
 // draining the queue must preserve each receipt without adding another one.
