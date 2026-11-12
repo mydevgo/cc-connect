@@ -29,4 +29,9 @@ result=await handleAnswer({...base,extra:{...base.extra,text:custom}},settings,{
 record.status='pending';record.expiresAt=1;writeJson(file,record);
 result=await handleAnswer(base,settings,{client});assert.equal(result.status,'expired');assert.equal(submissions.length,2);
 fs.rmSync(root,{recursive:true});
-console.log('PASS: persistent card delivery deduplication, bound card/token, option lookup, custom-answer precedence, duplicate and expired submissions.');
+const missing={...base,extra:{source:'card',code:'Q-000000000000',token:'12345678-1234-1234-1234-123456789012',message_id:'om_missing',text:'test'}};
+result=await handleAnswer(missing,settings,{client});assert.equal(result.ok,false);assert.equal(result.status,'keep');assert.match(result.message,/找不到该问题编号/);assert.ok(!result.message.includes(root));
+fs.mkdirSync(root);fs.writeFileSync(recordPath(root,'Q-111111111111'),'{invalid');
+result=await handleAnswer({...missing,extra:{...missing.extra,code:'Q-111111111111'}},settings,{client});assert.equal(result.ok,false);assert.equal(result.status,'keep');assert.match(result.message,/问题记录无效/);assert.ok(!result.message.includes(root));
+fs.rmSync(root,{recursive:true});
+console.log('PASS: persistent card delivery deduplication, bound card/token, option lookup, custom-answer precedence, duplicate and expired submissions, invalid-card diagnostics.');

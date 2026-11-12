@@ -6,6 +6,16 @@ import {acquireQuestion,parseAnswer,validatePending,answerEnvelope,walkObjects,r
 import {DesktopAnswerClient} from './desktop-answer-ipc.mjs';
 import {handleNotificationReply} from './desktop-notifications.mjs';
 
+function readCardRecord(settings,code){
+  try{
+    return JSON.parse(fs.readFileSync(recordPath(settings.answerDir,code),'utf8'));
+  }catch(error){
+    if(error?.code==='ENOENT')throw new Error('找不到该问题编号，请从桌面重新发起问题。');
+    if(error instanceof SyntaxError)throw new Error('问题记录无效，请从桌面重新发起问题。');
+    throw new Error('无法读取问题记录，请检查本地问题目录。');
+  }
+}
+
 export async function handleAnswer(event,settings,dependencies={}){
   const parts=settings.sessionKey?.split(':');
   if(event.event!=='desktop.answer'||event.project!==settings.project||event.platform!=='feishu'||event.session_key!==settings.sessionKey||event.user_id!==parts?.[2])return {ok:false,message:'仅允许已绑定的飞书私聊回答桌面问题。'};
@@ -16,7 +26,7 @@ export async function handleAnswer(event,settings,dependencies={}){
     let parsed;
     if(event.extra?.source==='card'){
       code=String(event.extra.code||'').toUpperCase();
-      knownRecord=JSON.parse(fs.readFileSync(recordPath(settings.answerDir,code),'utf8'));
+      knownRecord=readCardRecord(settings,code);
       const token=String(event.extra.token||'');
       if(!knownRecord.cardToken||token.length!==knownRecord.cardToken.length||!crypto.timingSafeEqual(Buffer.from(token),Buffer.from(knownRecord.cardToken))||knownRecord.cardMessageId!==event.extra.message_id){knownRecord=null;throw new Error('卡片与原问题不匹配，请在桌面查看。')}
       const custom=typeof event.extra.text==='string'?event.extra.text.trim():'';

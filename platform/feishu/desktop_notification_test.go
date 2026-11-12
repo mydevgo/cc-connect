@@ -12,6 +12,53 @@ import (
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 )
 
+func TestDesktopNotificationCardRendersMarkdown(t *testing.T) {
+	notice := core.DesktopNotification{
+		Code: "N-0123456789ABCDEF",
+		Text: "[Codex · 回复完成]\n\n**粗体**\n> 引用内容\n![本地截图](/C:/temp/screenshot.png)\n[查看文件](/E:/project/report.md)",
+	}
+	card := desktopNotificationCardMap(notice)
+	if card["schema"] != "2.0" {
+		t.Fatalf("schema = %v, want 2.0", card["schema"])
+	}
+	body, ok := card["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body = %#v, want card body", card["body"])
+	}
+	elements, ok := body["elements"].([]map[string]any)
+	if !ok || len(elements) != 1 {
+		t.Fatalf("elements = %#v, want one markdown element", body["elements"])
+	}
+	element := elements[0]
+	if element["tag"] != "markdown" {
+		t.Fatalf("tag = %v, want markdown", element["tag"])
+	}
+	content, _ := element["content"].(string)
+	for _, want := range []string{"**粗体**", "> 引用内容", "查看文件", "/E:/project/report.md"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("markdown content %q missing %q", content, want)
+		}
+	}
+	if strings.Contains(content, "![本地截图]") {
+		t.Fatalf("local image markdown must not produce a broken Feishu image: %q", content)
+	}
+}
+
+func TestDesktopNotificationMarkdownCardKeepsQuoteRouting(t *testing.T) {
+	card := desktopNotificationCardMap(core.DesktopNotification{
+		Code: "N-0123456789ABCDEF",
+		Text: "[Codex · 回复完成]\n\n请选择：**A** 或 **B**",
+	})
+	raw, err := json.Marshal(card)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := extractInteractiveCardText(string(raw))
+	if !isDesktopNotificationText(text) {
+		t.Fatalf("markdown desktop notice is no longer recognizable as a quote target: %q", text)
+	}
+}
+
 func TestDesktopNotificationQuoteRoutingIsOptIn(t *testing.T) {
 	p := &Platform{platformName: "feishu"}
 	if p.handleDesktopNotificationReply(context.Background(), "text", `{"text":"ordinary reply"}`, nil, "om_reply", "key", "user", replyContext{}, "om_parent") {

@@ -23,13 +23,25 @@ func (p *Platform) EnableDesktopNotificationReplies(enabled bool) {
 	p.mu.Unlock()
 }
 
+func desktopNotificationCardMap(notice core.DesktopNotification) map[string]any {
+	return map[string]any{
+		"schema": "2.0",
+		"config": map[string]any{"width_mode": "fill"},
+		"body": map[string]any{
+			"elements": []map[string]any{{
+				"tag":     "markdown",
+				"content": sanitizeCardMarkdownForCard(notice.Text),
+			}},
+		},
+	}
+}
+
 func (p *Platform) SendDesktopNotification(ctx context.Context, rctx any, notice core.DesktopNotification) (string, error) {
 	rc, ok := rctx.(replyContext)
 	if !ok || rc.chatID == "" {
 		return "", fmt.Errorf("feishu: invalid desktop notice destination")
 	}
-	card := map[string]any{"config": map[string]any{"wide_screen_mode": true}, "elements": []map[string]any{{"tag": "div", "text": plainText(notice.Text)}}}
-	body, err := json.Marshal(card)
+	body, err := json.Marshal(desktopNotificationCardMap(notice))
 	if err != nil {
 		return "", err
 	}
