@@ -4,6 +4,8 @@ This optional Windows integration forwards local Codex Desktop main-chat notific
 
 The bridge answers the original desktop chat and active turn. It does not start a new agent session. Ordinary Feishu messages still use the project's normal agent. `/answer Q-XXXXXXXXXXXX your answer` is a fallback; its question code appears at the bottom of the card.
 
+Plain-text questions in a completed response can also be answered by quoting a newly bound completion notification and sending text. This starts the next turn in the original desktop chat, inheriting its model, workspace and permissions. It never sends that text to the project's ordinary agent. Only the latest completed turn of an idle, open desktop chat is accepted.
+
 ## Prerequisites
 
 - A patched cc-connect binary built from this repository, Node.js, and a running Windows Codex Desktop application.
@@ -13,7 +15,7 @@ The bridge answers the original desktop chat and active turn. It does not start 
 
 ## Setup
 
-1. Copy the five `.mjs` files to a private, persistent directory. Copy `settings.example.json` to `settings.json` there and replace every example path and identifier. Keep the scripts together. State and question directories are created automatically. No Feishu secret belongs in this settings file.
+1. Copy the six `.mjs` files, including `desktop-notifications.mjs`, to a private, persistent directory. Copy `settings.example.json` to `settings.json` there and replace every example path and identifier. Keep the scripts together. State and question directories are created automatically. No Feishu secret belongs in this settings file.
 2. Add one exact `desktop.answer` command hook to the cc-connect configuration. Use absolute paths and the project's configured shell. For PowerShell, a hook is:
 
    ```toml
@@ -29,17 +31,20 @@ The bridge answers the original desktop chat and active turn. It does not start 
 
 `cc-connect desktop-card --project NAME --session SESSION` reads a question JSON object from stdin and prints `{ "message_id": "om_..." }`. It uses cc-connect's existing local API socket and platform connection. The integration invokes it automatically. Global help remains unchanged because this is an internal transport.
 
+Completion notices use `desktop-notice` with JSON stdin and persist the returned message ID under `answerDir/notifications`. A reply must match that exact ID. Old notifications, missing records, unverifiable quotes, or replies to card receipts are rejected visibly. Quoting an ordinary bot message retains normal agent behavior; a quote whose parent cannot be read is rejected instead of guessing its destination. Send commands as separate messages, and use text only for a quoted desktop notice.
+
 ## Supported behavior and limits
 
 - Completion, question, permission-request, model-error, and recognizable tool-error notifications cover local desktop main chats. CLI and subagent sessions are filtered out. The bundled notifier/bridge sample uses Chinese notification and receipt text; Go card chrome follows the project language and supports English, Simplified Chinese, Traditional Chinese, Japanese, and Spanish.
-- Remote answers support asynchronous desktop questions in the original still-active turn. Blocking `request_user_input`, permission approvals, login prompts, and ended/interrupted turns require the desktop.
+- Card answers support asynchronous desktop questions in the original still-active turn. A quote of a new completion notice can instead start the next turn in the same idle desktop chat. Blocking `request_user_input`, permission approvals and login prompts require the desktop.
 - Card custom input is limited to 1000 characters; `/answer` accepts up to 8000. Merely selecting or typing does not submit. Secret questions are skipped.
 - Replies are restricted to the configured project, platform, private-chat session, user, question code, card token, and original message ID. Before sending, the adapter rechecks the desktop question, active turn, and prior replies.
 - Question records expire after 24 hours. A directory lock serializes each question. Repeated replies, stale questions, and already-answered questions are rejected.
+- Completion-notice records also expire after 24 hours and accept one reply. A newer turn or an active task makes an older notice unavailable. The original final reply and latest turn are checked immediately before starting the new turn. Validation and submission are not atomic, so avoid submitting simultaneously from the desktop and Feishu.
 - If a send may have succeeded but cannot be confirmed, it is not retried automatically. Check the desktop first. Desktop and Feishu answers can still race between validation and submission; use one entry point for each question.
 - Notifications are deduplicated after successful sends. There is no persistent retry queue for failed notifications.
 
-Question records and logs stay in the configured private directories. Logs omit answer bodies; question records contain the question, options, and card binding token. Do not commit runtime settings, records, or credentials.
+Question records and logs stay in the configured private directories. Logs omit answer bodies; question records contain the question, options, and card binding token. Notification records contain the original final reply, desktop turn and exact Feishu message binding. Do not commit runtime settings, records, or credentials.
 
 ## Maintenance
 
@@ -56,6 +61,7 @@ node integrations/codex-desktop/tests/test-desktop-answer.mjs
 node integrations/codex-desktop/tests/test-question-cards.mjs
 node integrations/codex-desktop/tests/test-codex-wechat-notify.mjs
 node integrations/codex-desktop/tests/validate-answer-notification.mjs
+node integrations/codex-desktop/tests/test-notification-replies.mjs
 go test ./core ./platform/feishu -run TestDesktop
 go test ./core -run TestCUJ
 ```

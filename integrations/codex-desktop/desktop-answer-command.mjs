@@ -4,10 +4,12 @@ import crypto from 'node:crypto';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {acquireQuestion,parseAnswer,validatePending,answerEnvelope,walkObjects,recordPath} from './desktop-answer-store.mjs';
 import {DesktopAnswerClient} from './desktop-answer-ipc.mjs';
+import {handleNotificationReply} from './desktop-notifications.mjs';
 
 export async function handleAnswer(event,settings,dependencies={}){
   const parts=settings.sessionKey?.split(':');
   if(event.event!=='desktop.answer'||event.project!==settings.project||event.platform!=='feishu'||event.session_key!==settings.sessionKey||event.user_id!==parts?.[2])return {ok:false,message:'仅允许已绑定的飞书私聊回答桌面问题。'};
+  if(event.extra?.source==='notification_reply')return handleNotificationReply(event,settings,dependencies);
   let locked,client,submitted=false,code,knownRecord;
   const log=entry=>dependencies.log?.(entry);
   try{

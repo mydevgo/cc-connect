@@ -84,6 +84,21 @@ func TestCUJ_I6_DesktopAnswersStayInOriginalChat(t *testing.T) {
 	}
 }
 
+func TestCUJ_I7_DesktopNotificationQuotesFailClosed(t *testing.T) {
+	env := newCUJEnv(t)
+	t.Cleanup(func() { _ = env.engine.Stop() })
+	for _, text := range []string{"answer plain-text desktop question", "retry old notification", "reply after lookup failed"} {
+		env.engine.ReceiveMessage(env.plat, &Message{SessionKey: "test:desktop-user", Platform: "test", UserID: "desktop-user", ReplyCtx: "original-chat", DesktopReply: &DesktopNotificationReply{ParentMessageID: "om_notice", Text: text}})
+		want := env.engine.i18n.T(MsgDesktopBridgeUnavailable)
+		env.waitFor("explicit rejection instead of unrelated agent task", time.Second, func() bool { return env.sentContains(want) })
+	}
+	env.agent.mu.Lock()
+	defer env.agent.mu.Unlock()
+	if len(env.agent.sessions) != 0 {
+		t.Fatal("quoted desktop notifications must never start an ordinary agent")
+	}
+}
+
 // CUJ: submit work during slow startup, queue a follow-up while the agent is
 // working, then check status. Both messages have receipts before either answer;
 // draining the queue must preserve each receipt without adding another one.

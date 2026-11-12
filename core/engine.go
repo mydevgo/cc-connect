@@ -904,6 +904,18 @@ func (e *Engine) reapIdleWorkspaces() {
 // SetHooks configures the lifecycle event hook manager.
 func (e *Engine) SetHooks(hm *HookManager) {
 	e.hooks = hm
+	enabled := false
+	for _, hook := range hm.Hooks() {
+		if hook.Event == "desktop.answer" && hook.Type == "command" {
+			enabled = true
+			break
+		}
+	}
+	for _, platform := range e.platforms {
+		if configurer, ok := platform.(DesktopNotificationReplyConfigurer); ok {
+			configurer.EnableDesktopNotificationReplies(enabled)
+		}
+	}
 }
 
 // SetShell configures the shell binary, flag, and shell profile used for exec.
@@ -2974,6 +2986,10 @@ func (e *Engine) startMessageRecallMonitor(sessionKey string) context.CancelFunc
 }
 
 func (e *Engine) handleMessage(p Platform, msg *Message) {
+	if msg.DesktopReply != nil {
+		e.dispatchDesktopNotificationReply(p, msg)
+		return
+	}
 	if msg.DesktopAnswer != nil {
 		e.dispatchDesktopCardAnswer(p, msg)
 		return

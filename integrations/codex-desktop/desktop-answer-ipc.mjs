@@ -58,6 +58,12 @@ export class DesktopAnswerClient extends EventEmitter {
     const restoreMessage={id,cwd:this.state.cwd,context:{workspaceRoots:[this.state.cwd],collaborationMode:this.state.latestCollaborationMode},text,content:input};
     return this.request('thread-follower-steer-turn',{conversationId:this.sessionId,input,restoreMessage,clientUserMessageId:id});
   }
+  async startTurn(text,id){
+    if(this.failure)throw this.failure;
+    const input=[{type:'text',text,text_elements:[]}];
+    const restoreMessage={id,cwd:this.state.cwd,text,content:input};
+    return this.request('thread-follower-start-turn',{conversationId:this.sessionId,turnStart:{request:{threadId:this.sessionId,input,clientUserMessageId:id},context:{inheritThreadSettings:true,restoreMessage}}},2);
+  }
   async waitFor(predicate,timeout=4000){if(predicate(this.state))return true;return new Promise(resolve=>{const done=value=>{clearTimeout(timer);this.off('state',check);this.off('failure',failed);resolve(value)};const check=state=>{if(predicate(state))done(true)};const failed=()=>done(false);const timer=setTimeout(()=>done(false),timeout);this.on('state',check);this.once('failure',failed)});}
   close(){if(this.closed)return;try{if(this.ownerId&&this.socket?.writable)this.follow(false)}catch{}this.closed=true;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Closed'))}this.pending.clear();this.socket?.destroy();}
 }

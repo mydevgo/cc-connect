@@ -192,6 +192,11 @@ func (i *I18n) SetLang(lang Language) {
 type MsgKey string
 
 const (
+	MsgDesktopQuoteUnavailable MsgKey = "desktop_quote_unavailable"
+	MsgDesktopQuoteTextOnly    MsgKey = "desktop_quote_text_only"
+)
+
+const (
 	MsgStarting                  MsgKey = "starting"
 	MsgThinking                  MsgKey = "thinking"
 	MsgTool                      MsgKey = "tool"
@@ -726,6 +731,20 @@ const (
 )
 
 var messages = map[MsgKey]map[Language]string{
+	MsgDesktopQuoteUnavailable: {
+		LangEnglish:            "The quoted message could not be verified. Nothing was sent to an agent. Please retry or check the desktop.",
+		LangChinese:            "无法核对被引用的消息，本次没有启动普通任务。请重试或回到桌面处理。",
+		LangTraditionalChinese: "無法核對被引用的訊息，本次沒有啟動一般任務。請重試或回到桌面處理。",
+		LangJapanese:           "引用メッセージを確認できません。通常のタスクは開始していません。再試行するかデスクトップで確認してください。",
+		LangSpanish:            "No se pudo verificar el mensaje citado. No se inició ninguna tarea. Reintenta o revisa el escritorio.",
+	},
+	MsgDesktopQuoteTextOnly: {
+		LangEnglish:            "Reply to this desktop notification using text only. No ordinary agent task was started.",
+		LangChinese:            "请使用纯文字回复这条桌面通知，本次没有启动普通任务。",
+		LangTraditionalChinese: "請使用純文字回覆這則桌面通知，本次沒有啟動一般任務。",
+		LangJapanese:           "デスクトップ通知にはテキストのみで返信してください。通常のタスクは開始していません。",
+		LangSpanish:            "Responde a esta notificación solo con texto. No se inició ninguna tarea.",
+	},
 	MsgDesktopBridgeUnavailable: {
 		LangEnglish:            "Desktop answer bridge is unavailable. Please check the original question on the desktop.",
 		LangChinese:            "暂时无法确认提交结果，请到桌面查看原问题后再决定是否重试。",

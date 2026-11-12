@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { registerQuestions } from './desktop-answer-store.mjs';
 import { sendQuestionCards } from './desktop-question-cards.mjs';
+import { sendDesktopNotification } from './desktop-notifications.mjs';
 
 const text = value => typeof value === 'string' ? value : JSON.stringify(value ?? '');
 const clip = (value, limit) => {
@@ -225,6 +226,11 @@ export function deliver(event, options) {
       return {status:'sent',category:notice.category,session:meta.id,format:'card'};
     }
     const message = render(event, notice, meta, sessionTitle(codexHome, meta.id));
+    if(notice.category==='complete'&&options.questionCards&&options.answerDir){
+      const messageId=sendDesktopNotification(event,options,message);
+      fs.writeFileSync(marker,JSON.stringify({at:new Date().toISOString(),session:meta.id,turn,category:notice.category,format:'desktop-notice',messageId}));
+      return {status:'sent',category:notice.category,session:meta.id,format:'desktop-notice'};
+    }
     const result = (options.sender || ((body) => spawnSync(options.ccBinary, [
       'send', '--project', options.project, '--session', options.sessionKey, '--stdin',
     ], { input: body, encoding: 'utf8', windowsHide: true, timeout: 25_000, maxBuffer: 256 * 1024 })))(message);

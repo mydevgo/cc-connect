@@ -114,14 +114,7 @@ func (e *Engine) dispatchDesktopCardAnswer(p Platform, msg *Message) {
 	if submission == nil {
 		return
 	}
-	e.userRolesMu.RLock()
-	disabled := e.disabledCmds["answer"]
-	roles := e.userRoles
-	e.userRolesMu.RUnlock()
-	if role := roles.ResolveRole(msg.UserID); role != nil {
-		disabled = role.DisabledCmds["answer"]
-	}
-	if disabled {
+	if e.desktopAnswerDisabled(msg.UserID) {
 		e.reply(p, msg.ReplyCtx, e.i18n.Tf(MsgCommandDisabled, "/answer"))
 		return
 	}

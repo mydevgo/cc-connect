@@ -405,8 +405,9 @@ type LocationAttachment struct {
 
 // Message represents a unified incoming message from any platform.
 type Message struct {
-	DesktopAnswer *DesktopCardSubmission // local desktop-question form callback
-	SessionKey    string                 // unique key for user context, e.g. "feishu:{chatID}:{userID}"
+	DesktopReply  *DesktopNotificationReply // reply to an existing desktop notification; never an agent prompt
+	DesktopAnswer *DesktopCardSubmission    // local desktop-question form callback
+	SessionKey    string                    // unique key for user context, e.g. "feishu:{chatID}:{userID}"
 	Platform      string
 	MessageID     string // platform message ID for tracing
 	Recalled      bool   // true for platform message recall/delete events targeting MessageID

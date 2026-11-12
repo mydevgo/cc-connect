@@ -134,6 +134,7 @@ type replyContext struct {
 
 type Platform struct {
 	mu                         sync.RWMutex
+	desktopNotificationReplies bool
 	platformName               string
 	domain                     string
 	appID                      string
@@ -1972,6 +1973,9 @@ func (p *Platform) dispatchMessage(ctx context.Context, msgType, content string,
 func (p *Platform) dispatchMessageWithHistory(ctx context.Context, msgType, content string, mentions []*larkim.MentionEvent, messageID, sessionKey, userID, chatID string, rctx replyContext, parentID string, createTimeMs int64, groupHistoryCtx groupHistoryContext) {
 	if p.isMessageRecalled(messageID) {
 		slog.Debug(p.tag()+": recalled message ignored in async dispatch", "message_id", messageID)
+		return
+	}
+	if p.handleDesktopNotificationReply(ctx, msgType, content, mentions, messageID, sessionKey, userID, rctx, parentID) {
 		return
 	}
 
